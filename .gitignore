@@ -1,0 +1,14 @@
+# Java
+java/target/
+*.class
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# IDE / OS
+.idea/
+.DS_Store
