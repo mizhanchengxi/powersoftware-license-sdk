@@ -11,7 +11,7 @@ Official SDKs for the PowerSoftware license system, covering **Node.js / Python 
 ```text
 node/     Node.js SDK（ESM，零依赖）
 python/   Python SDK（py3，零依赖）
-java/     Java SDK（Java 11+，零依赖）
+java/     Java SDK（Java 8+，零依赖）
 docs/     SDK 规范（中文 / English）
 ```
 

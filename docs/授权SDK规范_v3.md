@@ -89,7 +89,7 @@ https://www.powersoftware.app/product/license/purchase?productId={productId}&mac
 ps-sdk/
   node/     @mizhanchengxi/ps-license-sdk（ESM，零依赖）
   python/   ps-license-sdk（py3，零依赖）
-  java/     com.powersoftware:sdk（Java 11+，JDK 自带 HTTP/加密）
+  java/     com.powersoftware:sdk（Java 8+，JDK 自带 HTTP/加密）
 ```
 
 三个包均提供：`machineCode()`、`sign()`、`LicenseClient`（上述 6 方法 + `verifyCached` + `purchaseUrl`）。

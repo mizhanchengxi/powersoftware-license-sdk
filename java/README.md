@@ -1,6 +1,6 @@
 # PowerSoftware License SDK (Java)
 
-Java 11+，零依赖（JDK 自带 HTTP/加密）。激活 / 校验 / 解绑 / 软件内发码与升级 / 试用领取，机器码与 HMAC 签名跨语言一致。
+Java 8+，零依赖（JDK 自带 HTTP/加密）。激活 / 校验 / 解绑 / 软件内发码与升级 / 试用领取，机器码与 HMAC 签名跨语言一致。
 
 ## 构建
 

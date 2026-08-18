@@ -2,19 +2,19 @@ package com.powersoftware.sdk;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.net.URI;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * PowerSoftware 授权客户端（Java 11+，零依赖）。
+ * PowerSoftware 授权客户端（Java 8+，零依赖）。
  * 方法：activate / verify / deactivate / claimTrial / generateForSoftware / upgradeForSoftware / verifyCached / purchaseUrl。
  */
 public class LicenseClient {
@@ -25,7 +25,6 @@ public class LicenseClient {
     private final String baseUrl;
     private final String apiSecret;
     private final Integer productId;
-    private final HttpClient http;
     private final long cacheTtlMs;
     private VerifyCacheEntry verifyCache;
 
@@ -42,7 +41,6 @@ public class LicenseClient {
         this.productId = productId;
         this.apiSecret = apiSecret == null ? "" : apiSecret;
         this.cacheTtlMs = cacheTtlMs;
-        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
     }
 
     public static String machineCode() {
@@ -72,51 +70,81 @@ public class LicenseClient {
         return v == null ? "" : String.valueOf(v);
     }
 
+    private static Map<String, Object> mapOf(Object... kvs) {
+        Map<String, Object> m = new LinkedHashMap<String, Object>();
+        for (int i = 0; i < kvs.length; i += 2) {
+            m.put(String.valueOf(kvs[i]), kvs[i + 1]);
+        }
+        return m;
+    }
+
     public Map<String, Object> request(String path, Map<String, Object> body, boolean signed) throws Exception {
-        Map<String, Object> payload = new LinkedHashMap<>(body == null ? Map.of() : body);
+        Map<String, Object> payload = new LinkedHashMap<String, Object>(body == null ? new LinkedHashMap<String, Object>() : body);
         if (signed) {
             payload.put("timestamp", System.currentTimeMillis());
             payload.put("signature", sign(apiSecret, payload));
         }
-        HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + path))
-                .timeout(Duration.ofSeconds(15))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(Json.stringify(payload)))
-                .build();
-        HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        byte[] jsonBytes = Json.stringify(payload).getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection conn = (HttpURLConnection) new URL(baseUrl + path).openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(15000);
+        conn.setReadTimeout(15000);
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(jsonBytes);
+        }
+        int code = conn.getResponseCode();
+        String respBody;
+        try (InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream()) {
+            respBody = readAll(is);
+        }
+        conn.disconnect();
         Map<String, Object> json;
         try {
-            json = Json.parseObject(resp.body());
+            json = Json.parseObject(respBody);
         } catch (Exception e) {
             throw new LicenseException("invalid response", "BAD_RESPONSE");
         }
         if (!Boolean.TRUE.equals(json.get("success"))) {
             String tip = json.get("tip") == null ? "request failed" : String.valueOf(json.get("tip"));
-            String code = json.get("code") == null ? "REQUEST_FAILED" : String.valueOf(json.get("code"));
-            throw new LicenseException(tip, code);
+            String errorCode = json.get("code") == null ? "REQUEST_FAILED" : String.valueOf(json.get("code"));
+            throw new LicenseException(tip, errorCode);
         }
         return (Map<String, Object>) json.get("content");
     }
 
+    private static String readAll(InputStream is) throws Exception {
+        if (is == null) {
+            return "";
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[4096];
+        int n;
+        while ((n = is.read(buf)) != -1) {
+            out.write(buf, 0, n);
+        }
+        return new String(out.toByteArray(), StandardCharsets.UTF_8);
+    }
+
     public Map<String, Object> activate(String licenseCode, String machineCodeValue) throws Exception {
-        return request("/license/activate", Map.of("licenseCode", licenseCode, "machineCode", machineCodeValue), false);
+        return request("/license/activate", mapOf("licenseCode", licenseCode, "machineCode", machineCodeValue), false);
     }
 
     public Map<String, Object> verify(String licenseCode, String machineCodeValue, String activationToken) throws Exception {
-        return request("/license/verify", Map.of(
+        return request("/license/verify", mapOf(
                 "licenseCode", licenseCode,
                 "machineCode", machineCodeValue,
                 "activationToken", activationToken == null ? "" : activationToken), false);
     }
 
     public Map<String, Object> deactivate(String licenseCode, String machineCodeValue) throws Exception {
-        return request("/license/deactivate", Map.of("licenseCode", licenseCode, "machineCode", machineCodeValue), false);
+        return request("/license/deactivate", mapOf("licenseCode", licenseCode, "machineCode", machineCodeValue), false);
     }
 
     public Map<String, Object> claimTrial(String machineCodeValue) throws Exception {
         requireProductId();
-        return request("/license/trial/claim", Map.of("productId", productId, "machineCode", machineCodeValue), false);
+        return request("/license/trial/claim", mapOf("productId", productId, "machineCode", machineCodeValue), false);
     }
 
     public Map<String, Object> generateForSoftware(String machineCodeValue, String edition, int expiryDays, String clientOrderId) throws Exception {
