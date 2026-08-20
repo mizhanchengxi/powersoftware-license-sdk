@@ -27,6 +27,8 @@ public class SmokeTest {
 
         String url = new LicenseClient(88, "secret").purchaseUrl("MABC");
         check(url.contains("productId=88") && url.contains("machineCode=MABC"), "purchaseUrl params");
+        String url2 = new LicenseClient(null, "secret").purchaseUrl("MABC", "https://www.powersoftware.cn", "PRO-2026-001");
+        check(url2.contains("productUniqueCode=PRO-2026-001") && url2.contains("machineCode=MABC") && !url2.contains("productId="), "purchaseUrl productUniqueCode");
         System.out.println("SmokeTest OK");
     }
 

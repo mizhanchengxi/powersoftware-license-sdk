@@ -71,13 +71,14 @@ productId \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCod
 
 1. `verifyCached(licenseCode, machineCode, activationToken)` 返回有效且未过期 → 放行；
 2. 返回无效/过期/未激活 → 弹窗提示"需要购买激活授权"；
-3. 生成 `machineCode`，跳转购买页：
+3. 生成 `machineCode`，跳转购买页（产品标识二选一，均携带机器码）：
 
 ```text
 https://www.powersoftware.app/product/license/purchase?productId={productId}&machineCode={machineCode}
+https://www.powersoftware.cn/product/license/purchase?productUniqueCode={productUniqueCode}&machineCode={machineCode}
 ```
 
-（多语言站点在路径前加语言前缀，如 `/en-US/product/license/purchase`。）
+（多语言站点在路径前加语言前缀，如 `/en-US/product/license/purchase`；国内站 base 传 `https://www.powersoftware.cn`。三语言 `purchaseUrl(machineCode, { base, productUniqueCode })` 实现一致，2026-08-20 起支持 `productUniqueCode` 替代数字 `productId`，便于开发者用「商品唯一编码」跳转。）
 
 ## 6. 错误码（SDK 抛错统一携带 errorCode）
 

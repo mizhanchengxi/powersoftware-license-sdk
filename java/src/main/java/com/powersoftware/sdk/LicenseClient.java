@@ -181,10 +181,33 @@ public class LicenseClient {
         return data;
     }
 
+    /**
+     * 付费功能未授权时的购买页跳转 URL（productId 与 productUniqueCode 二选一）。
+     * baseUrl 缺省 https://www.powersoftware.app；产品标识缺省使用构造器 productId。
+     */
+    public String purchaseUrl(String machineCodeValue, String baseUrl, String productUniqueCode) {
+        if (productId == null && (productUniqueCode == null || productUniqueCode.isEmpty())) {
+            throw new LicenseException("productId or productUniqueCode required", "PRODUCT_ID_REQUIRED");
+        }
+        String base = (baseUrl == null || baseUrl.isEmpty()) ? "https://www.powersoftware.app" : baseUrl.replaceAll("/+$", "");
+        StringBuilder sb = new StringBuilder(base).append("/product/license/purchase?");
+        boolean first = true;
+        if (productId != null) {
+            sb.append("productId=").append(productId);
+            first = false;
+        }
+        if (productUniqueCode != null && !productUniqueCode.isEmpty()) {
+            if (!first) sb.append("&");
+            sb.append("productUniqueCode=").append(URLEncoder.encode(productUniqueCode, StandardCharsets.UTF_8));
+            first = false;
+        }
+        if (!first) sb.append("&");
+        sb.append("machineCode=").append(URLEncoder.encode(machineCodeValue, StandardCharsets.UTF_8));
+        return sb.toString();
+    }
+
     public String purchaseUrl(String machineCodeValue) {
-        requireProductId();
-        return "https://www.powersoftware.app/product/license/purchase?productId=" + productId
-                + "&machineCode=" + URLEncoder.encode(machineCodeValue, StandardCharsets.UTF_8);
+        return purchaseUrl(machineCodeValue, null, null);
     }
 
     private void requireProductId() {

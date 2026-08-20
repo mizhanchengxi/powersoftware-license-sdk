@@ -130,11 +130,15 @@ export class LicenseClient {
     return data;
   }
 
-  /** 付费功能未授权时的购买页跳转 URL */
-  purchaseUrl(machineCodeValue, { base = 'https://www.powersoftware.app' } = {}) {
-    if (!this.productId) throw new Error('productId required');
+  /**
+   * 付费功能未授权时的购买页跳转 URL。
+   * 产品标识二选一：构造器 productId（数字）或本方法 productUniqueCode（开发者中心唯一编码）。
+   */
+  purchaseUrl(machineCodeValue, { base = 'https://www.powersoftware.app', productUniqueCode } = {}) {
+    if (!this.productId && !productUniqueCode) throw new Error('productId or productUniqueCode required');
     const u = new URL(`${base}/product/license/purchase`);
-    u.searchParams.set('productId', String(this.productId));
+    if (this.productId) u.searchParams.set('productId', String(this.productId));
+    if (productUniqueCode) u.searchParams.set('productUniqueCode', String(productUniqueCode));
     u.searchParams.set('machineCode', machineCodeValue);
     return u.toString();
   }

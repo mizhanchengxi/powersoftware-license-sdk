@@ -18,3 +18,11 @@ test('purchaseUrl carries params', () => {
   assert.match(url, /productId=88/);
   assert.match(url, /machineCode=MABC/);
 });
+
+test('purchaseUrl supports productUniqueCode', () => {
+  const c = new LicenseClient({});
+  const url = c.purchaseUrl('MABC', { productUniqueCode: 'PRO-2026-001' });
+  assert.match(url, /productUniqueCode=PRO-2026-001/);
+  assert.match(url, /machineCode=MABC/);
+  assert.doesNotMatch(url, /productId=/);
+});

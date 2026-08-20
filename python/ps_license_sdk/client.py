@@ -131,8 +131,14 @@ class LicenseClient:
         self._verify_cache = {"at": now, "data": data}
         return data
 
-    def purchase_url(self, machine_code_value: str = None, base: str = "https://www.powersoftware.app") -> str:
-        if not self.product_id:
-            raise LicenseError("productId required", "PRODUCT_ID_REQUIRED")
-        params = urllib.parse.urlencode({"productId": self.product_id, "machineCode": machine_code_value or machine_code()})
-        return f"{base}/product/license/purchase?{params}"
+    def purchase_url(self, machine_code_value: str = None, base: str = "https://www.powersoftware.app", product_unique_code: str = None) -> str:
+        """付费功能未授权时的购买页跳转 URL（productId 与 product_unique_code 二选一）。"""
+        if not self.product_id and not product_unique_code:
+            raise LicenseError("productId or productUniqueCode required", "PRODUCT_ID_REQUIRED")
+        params = {}
+        if self.product_id:
+            params["productId"] = self.product_id
+        if product_unique_code:
+            params["productUniqueCode"] = product_unique_code
+        params["machineCode"] = machine_code_value or machine_code()
+        return f"{base}/product/license/purchase?{urllib.parse.urlencode(params)}"

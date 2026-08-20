@@ -56,11 +56,14 @@ Base: `https://www.powersoftware.app/frontApi` (overridable).
 
 1. `verifyCached(...)` returns valid & not expired → allow.
 2. Invalid/expired/not activated → prompt "purchase & activate required".
-3. Redirect with machine code:
+3. Redirect with machine code (product identified by either `productId` or `productUniqueCode`):
 
 ```text
 https://www.powersoftware.app/product/license/purchase?productId={productId}&machineCode={machineCode}
+https://www.powersoftware.cn/product/license/purchase?productUniqueCode={productUniqueCode}&machineCode={machineCode}
 ```
+
+(Multi-language sites prepend the locale prefix, e.g. `/en-US/product/license/purchase`; for the China site pass `base=https://www.powersoftware.cn`. All three SDKs implement `purchaseUrl(machineCode, { base, productUniqueCode })` consistently — since 2026-08-20 `productUniqueCode` can be used instead of the numeric `productId` so developers can jump with their product unique code.)
 
 ## 6. Error codes
 
