@@ -9,12 +9,12 @@ class SmokeTest(unittest.TestCase):
         self.assertGreaterEqual(len(machine_code()), 8)
 
     def test_sign_deterministic(self):
-        params = {"productId": 1, "machineCode": "M123", "edition": "PRO", "expiryDays": 0, "clientOrderId": "x", "licenseCode": "", "timestamp": 1000}
+        params = {"productUniqueCode": "PRO-2026-001", "machineCode": "M123", "edition": "PRO", "expiryDays": 0, "clientOrderId": "x", "licenseCode": "", "timestamp": 1000}
         self.assertEqual(sign("secret", params), sign("secret", params))
 
     def test_purchase_url(self):
-        url = LicenseClient(product_id=88).purchase_url("MABC")
-        self.assertIn("productId=88", url)
+        url = LicenseClient(product_unique_code="PRO-2026-001").purchase_url("MABC")
+        self.assertIn("productUniqueCode=PRO-2026-001", url)
         self.assertIn("machineCode=MABC", url)
 
 

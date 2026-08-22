@@ -14,7 +14,7 @@ npm install @mizhanchengxi/ps-license-sdk
 import { LicenseClient, machineCode } from '@mizhanchengxi/ps-license-sdk';
 
 const client = new LicenseClient({
-  productId: 88,
+  productUniqueCode: 'PRO-2026-001',
   apiSecret: process.env.LICENSE_API_SECRET, // 仅软件服务端保存
 });
 

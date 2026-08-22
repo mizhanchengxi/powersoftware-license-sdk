@@ -13,7 +13,7 @@ pip install ps-license-sdk
 ```python
 from ps_license_sdk import LicenseClient, machine_code
 
-client = LicenseClient(product_id=88, api_secret="你的软件发码密钥")  # 密钥仅存软件服务端
+client = LicenseClient(product_unique_code="PRO-2026-001", api_secret="你的软件发码密钥")  # 密钥仅存软件服务端
 mc = machine_code()
 
 trial = client.claim_trial(mc)                              # 先用后付：领取试用

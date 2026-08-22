@@ -7,24 +7,42 @@
 
 同一台机器上三语言 SDK 必须生成相同的 `machineCode`。
 
-指纹来源（按序拼接，统一小写、去除多余字符）：
+指纹来源按**优先级**选取，取到有效值即停止：
 
 ```text
-fingerprint = hostname | os | arch | primaryMac
+fingerprint = 硬件序列号 → 系统机器 ID → hostname | os | arch（兜底）
 ```
+
+### 优先级 1：硬件序列号（BIOS SN，重装系统不变）
+
+| 系统 | 来源 | 获取方式 | 权限 |
+| --- | --- | --- | --- |
+| Windows | BIOS SerialNumber | `wmic bios get serialnumber`（降级 PowerShell `Get-CimInstance Win32_BIOS`） | 普通用户 |
+| macOS | 硬件序列号 | `system_profiler SPHardwareDataType` 提取 `Serial Number` | 普通用户 |
+| Linux | 产品序列号 | 读 `/sys/class/dmi/id/product_serial`（降级 `dmidecode -s system-serial-number`） | **需 root** |
+
+### 优先级 2：系统机器 ID（安装时生成，同机不变）
+
+| 系统 | 来源 | 获取方式 | 权限 |
+| --- | --- | --- | --- |
+| Windows | MachineGuid | 注册表 `HKLM\SOFTWARE\Microsoft\Cryptography` | 普通用户 |
+| macOS | IOPlatformUUID | `ioreg -d2 -c IOPlatformPlatformDevice` | 普通用户 |
+| Linux | machine-id | 读 `/etc/machine-id`（降级 `/var/lib/dbus/machine-id`） | 所有用户 |
+
+### 优先级 3：兜底（hostname | os | arch）
+
+当硬件序列号和系统机器 ID 均获取失败时使用。
 
 | 字段 | Node | Python | Java |
 | --- | --- | --- | --- |
 | hostname | `os.hostname()` | `socket.gethostname()` | `InetAddress.getLocalHost().getHostName()` |
 | os | `os.platform()` | `sys.platform` | `System.getProperty("os.name")` |
 | arch | `os.arch()` | `platform.machine()` | `System.getProperty("os.arch")` |
-| primaryMac | 首个非虚拟网卡 MAC（去 `:` 小写） | `uuid.getnode()` 转 12 位十六进制 | 首个非回环网卡 `getHardwareAddress()` 转十六进制 |
 
-统一处理：
+### 统一处理
 
-- hostname / os / arch 去除首尾空白并转小写；
-- MAC 转小写、去掉分隔符（Node `aa:bb:cc:dd:ee:ff`、Java 大写十六进制字节数组 → 小写）；
-- Python `uuid.getnode()` 可能返回多播位（第 40 位），需 `(node & 0xFFFFFFFFFFFF)` 掩码，且按 `%012x` 格式化；
+- 所有字段去除首尾空白并转小写；
+- 过滤厂商占位值（`To be filled by O.E.M.` / `None` / `0` / `Default` / `Not Available` / `Not Specified`）；
 - 拼接符统一为 `|`，整体再 `toLowerCase()`。
 
 ```text
@@ -38,7 +56,7 @@ machineCode = 'M' + base64url( sha256( fingerprint ) ).slice(0, 32)
 签名串按固定顺序、换行分隔（缺省填空值：`edition` 空串、`expiryDays` 0、`licenseCode` 空串）：
 
 ```text
-productId \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCode \n timestamp
+productUniqueCode \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCode \n timestamp
 ```
 
 `signature = base64url( HMAC-SHA256( licenseApiSecret, 签名串 ) )`；`timestamp` 为毫秒，平台校验与服务器时间差 ≤ 5 分钟（防重放）。
@@ -71,14 +89,14 @@ productId \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCod
 
 1. `verifyCached(licenseCode, machineCode, activationToken)` 返回有效且未过期 → 放行；
 2. 返回无效/过期/未激活 → 弹窗提示"需要购买激活授权"；
-3. 生成 `machineCode`，跳转购买页（产品标识二选一，均携带机器码）：
+3. 生成 `machineCode`，跳转购买页（产品标识为 `productUniqueCode`，携带机器码）：
 
 ```text
-https://www.powersoftware.app/product/license/purchase?productId={productId}&machineCode={machineCode}
+https://www.powersoftware.app/product/license/purchase?productUniqueCode={productUniqueCode}&machineCode={machineCode}
 https://www.powersoftware.cn/product/license/purchase?productUniqueCode={productUniqueCode}&machineCode={machineCode}
 ```
 
-（多语言站点在路径前加语言前缀，如 `/en-US/product/license/purchase`；国内站 base 传 `https://www.powersoftware.cn`。三语言 `purchaseUrl(machineCode, { base, productUniqueCode })` 实现一致，2026-08-20 起支持 `productUniqueCode` 替代数字 `productId`，便于开发者用「商品唯一编码」跳转。）
+（多语言站点在路径前加语言前缀，如 `/en-US/product/license/purchase`；国内站 base 传 `https://www.powersoftware.cn`。三语言 `purchaseUrl(machineCode, { base })` 实现一致，`productUniqueCode` 由构造器传入。）
 
 ## 6. 错误码（SDK 抛错统一携带 errorCode）
 

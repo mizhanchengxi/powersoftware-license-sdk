@@ -16,7 +16,7 @@ public class SmokeTest {
         check(mc1.length() >= 8, "machineCode length");
 
         Map<String, Object> params = new LinkedHashMap<>();
-        params.put("productId", 1);
+        params.put("productUniqueCode", "PRO-2026-001");
         params.put("machineCode", "M123");
         params.put("edition", "PRO");
         params.put("expiryDays", 0);
@@ -25,10 +25,10 @@ public class SmokeTest {
         params.put("timestamp", 1000L);
         check(LicenseClient.sign("secret", params).equals(LicenseClient.sign("secret", params)), "sign deterministic");
 
-        String url = new LicenseClient(88, "secret").purchaseUrl("MABC");
-        check(url.contains("productId=88") && url.contains("machineCode=MABC"), "purchaseUrl params");
-        String url2 = new LicenseClient(null, "secret").purchaseUrl("MABC", "https://www.powersoftware.cn", "PRO-2026-001");
-        check(url2.contains("productUniqueCode=PRO-2026-001") && url2.contains("machineCode=MABC") && !url2.contains("productId="), "purchaseUrl productUniqueCode");
+        String url = new LicenseClient("PRO-2026-001", "secret").purchaseUrl("MABC");
+        check(url.contains("productUniqueCode=PRO-2026-001") && url.contains("machineCode=MABC") && !url.contains("productId="), "purchaseUrl params");
+        String url2 = new LicenseClient("PRO-2026-001", "secret").purchaseUrl("MABC", "https://www.powersoftware.cn");
+        check(url2.contains("productUniqueCode=PRO-2026-001") && url2.contains("machineCode=MABC"), "purchaseUrl custom base");
         System.out.println("SmokeTest OK");
     }
 

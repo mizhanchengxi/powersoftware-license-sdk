@@ -24,21 +24,21 @@ public class LicenseClient {
 
     private final String baseUrl;
     private final String apiSecret;
-    private final Integer productId;
+    private final String productUniqueCode;
     private final long cacheTtlMs;
     private VerifyCacheEntry verifyCache;
 
-    public LicenseClient(Integer productId, String apiSecret) {
-        this(DEFAULT_BASE_URL, productId, apiSecret, VERIFY_CACHE_TTL_MS);
+    public LicenseClient(String productUniqueCode, String apiSecret) {
+        this(DEFAULT_BASE_URL, productUniqueCode, apiSecret, VERIFY_CACHE_TTL_MS);
     }
 
-    public LicenseClient(String baseUrl, Integer productId, String apiSecret) {
-        this(baseUrl, productId, apiSecret, VERIFY_CACHE_TTL_MS);
+    public LicenseClient(String baseUrl, String productUniqueCode, String apiSecret) {
+        this(baseUrl, productUniqueCode, apiSecret, VERIFY_CACHE_TTL_MS);
     }
 
-    public LicenseClient(String baseUrl, Integer productId, String apiSecret, long cacheTtlMs) {
+    public LicenseClient(String baseUrl, String productUniqueCode, String apiSecret, long cacheTtlMs) {
         this.baseUrl = baseUrl.replaceAll("/+$", "");
-        this.productId = productId;
+        this.productUniqueCode = productUniqueCode;
         this.apiSecret = apiSecret == null ? "" : apiSecret;
         this.cacheTtlMs = cacheTtlMs;
     }
@@ -47,10 +47,10 @@ public class LicenseClient {
         return MachineCode.get();
     }
 
-    /** HMAC 签名：productId \\n machineCode \\n edition \\n expiryDays \\n clientOrderId \\n licenseCode \\n timestamp */
+    /** HMAC 签名：productUniqueCode \\n machineCode \\n edition \\n expiryDays \\n clientOrderId \\n licenseCode \\n timestamp */
     public static String sign(String apiSecret, Map<String, Object> params) {
         String payload = String.join("\n",
-                str(params.get("productId")),
+                str(params.get("productUniqueCode")),
                 str(params.get("machineCode")),
                 str(params.get("edition")),
                 params.get("expiryDays") == null ? "0" : String.valueOf(params.get("expiryDays")),
@@ -143,14 +143,14 @@ public class LicenseClient {
     }
 
     public Map<String, Object> claimTrial(String machineCodeValue) throws Exception {
-        requireProductId();
-        return request("/license/trial/claim", mapOf("productId", productId, "machineCode", machineCodeValue), false);
+        requireProductCode();
+        return request("/license/trial/claim", mapOf("productUniqueCode", productUniqueCode, "machineCode", machineCodeValue), false);
     }
 
     public Map<String, Object> generateForSoftware(String machineCodeValue, String edition, int expiryDays, String clientOrderId) throws Exception {
-        requireProductId();
+        requireProductCode();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("productId", productId);
+        body.put("productUniqueCode", productUniqueCode);
         body.put("machineCode", machineCodeValue);
         body.put("edition", edition == null ? "" : edition);
         body.put("expiryDays", expiryDays);
@@ -159,9 +159,9 @@ public class LicenseClient {
     }
 
     public Map<String, Object> upgradeForSoftware(String licenseCode, String machineCodeValue, String edition, int expiryDays, String clientOrderId) throws Exception {
-        requireProductId();
+        requireProductCode();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("productId", productId);
+        body.put("productUniqueCode", productUniqueCode);
         body.put("licenseCode", licenseCode);
         body.put("machineCode", machineCodeValue);
         body.put("edition", edition);
@@ -182,37 +182,25 @@ public class LicenseClient {
     }
 
     /**
-     * 付费功能未授权时的购买页跳转 URL（productId 与 productUniqueCode 二选一）。
-     * baseUrl 缺省 https://www.powersoftware.app；产品标识缺省使用构造器 productId。
+     * 付费功能未授权时的购买页跳转 URL。
+     * 产品标识：构造器 productUniqueCode（开发者中心唯一编码）。
      */
-    public String purchaseUrl(String machineCodeValue, String baseUrl, String productUniqueCode) {
-        if (productId == null && (productUniqueCode == null || productUniqueCode.isEmpty())) {
-            throw new LicenseException("productId or productUniqueCode required", "PRODUCT_ID_REQUIRED");
+    public String purchaseUrl(String machineCodeValue, String baseUrl) {
+        if (productUniqueCode == null || productUniqueCode.isEmpty()) {
+            throw new LicenseException("productUniqueCode required", "PRODUCT_ID_REQUIRED");
         }
         String base = (baseUrl == null || baseUrl.isEmpty()) ? "https://www.powersoftware.app" : baseUrl.replaceAll("/+$", "");
-        StringBuilder sb = new StringBuilder(base).append("/product/license/purchase?");
-        boolean first = true;
-        if (productId != null) {
-            sb.append("productId=").append(productId);
-            first = false;
-        }
-        if (productUniqueCode != null && !productUniqueCode.isEmpty()) {
-            if (!first) sb.append("&");
-            sb.append("productUniqueCode=").append(URLEncoder.encode(productUniqueCode, StandardCharsets.UTF_8));
-            first = false;
-        }
-        if (!first) sb.append("&");
-        sb.append("machineCode=").append(URLEncoder.encode(machineCodeValue, StandardCharsets.UTF_8));
-        return sb.toString();
+        return base + "/product/license/purchase?productUniqueCode=" + URLEncoder.encode(productUniqueCode, StandardCharsets.UTF_8)
+                + "&machineCode=" + URLEncoder.encode(machineCodeValue, StandardCharsets.UTF_8);
     }
 
     public String purchaseUrl(String machineCodeValue) {
-        return purchaseUrl(machineCodeValue, null, null);
+        return purchaseUrl(machineCodeValue, null);
     }
 
-    private void requireProductId() {
-        if (productId == null) {
-            throw new LicenseException("productId required", "PRODUCT_ID_REQUIRED");
+    private void requireProductCode() {
+        if (productUniqueCode == null || productUniqueCode.isEmpty()) {
+            throw new LicenseException("productUniqueCode required", "PRODUCT_ID_REQUIRED");
         }
     }
 

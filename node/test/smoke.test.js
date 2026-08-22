@@ -8,20 +8,13 @@ test('machineCode stable & long enough', () => {
 });
 
 test('sign deterministic', () => {
-  const params = { productId: 1, machineCode: 'M123', edition: 'PRO', expiryDays: 0, clientOrderId: 'x', licenseCode: '', timestamp: 1000 };
+  const params = { productUniqueCode: 'PRO-2026-001', machineCode: 'M123', edition: 'PRO', expiryDays: 0, clientOrderId: 'x', licenseCode: '', timestamp: 1000 };
   assert.equal(sign('secret', params), sign('secret', params));
 });
 
 test('purchaseUrl carries params', () => {
-  const c = new LicenseClient({ productId: 88 });
+  const c = new LicenseClient({ productUniqueCode: 'PRO-2026-001' });
   const url = c.purchaseUrl('MABC', { base: 'https://www.powersoftware.app' });
-  assert.match(url, /productId=88/);
-  assert.match(url, /machineCode=MABC/);
-});
-
-test('purchaseUrl supports productUniqueCode', () => {
-  const c = new LicenseClient({});
-  const url = c.purchaseUrl('MABC', { productUniqueCode: 'PRO-2026-001' });
   assert.match(url, /productUniqueCode=PRO-2026-001/);
   assert.match(url, /machineCode=MABC/);
   assert.doesNotMatch(url, /productId=/);

@@ -20,10 +20,10 @@ def _b64url(data: bytes) -> str:
 
 
 def sign(api_secret: str, params: dict) -> str:
-    """HMAC 签名：productId \\n machineCode \\n edition \\n expiryDays \\n clientOrderId \\n licenseCode \\n timestamp"""
+    """HMAC 签名：productUniqueCode \\n machineCode \\n edition \\n expiryDays \\n clientOrderId \\n licenseCode \\n timestamp"""
     payload = "\n".join(
         [
-            str(params.get("productId", "")),
+            str(params.get("productUniqueCode", "")),
             str(params.get("machineCode", "")),
             str(params.get("edition", "")),
             str(params.get("expiryDays", 0)),
@@ -42,10 +42,10 @@ class LicenseError(RuntimeError):
 
 
 class LicenseClient:
-    def __init__(self, base_url: str = DEFAULT_BASE_URL, api_secret: str = "", product_id: int = None, cache_ttl_ms: int = VERIFY_CACHE_TTL_MS):
+    def __init__(self, base_url: str = DEFAULT_BASE_URL, api_secret: str = "", product_unique_code: str = None, cache_ttl_ms: int = VERIFY_CACHE_TTL_MS):
         self.base_url = base_url.rstrip("/")
         self.api_secret = api_secret
-        self.product_id = product_id
+        self.product_unique_code = product_unique_code
         self.cache_ttl_ms = cache_ttl_ms
         self._verify_cache = None
 
@@ -87,17 +87,17 @@ class LicenseClient:
         return self.request("/license/deactivate", {"licenseCode": license_code, "machineCode": machine_code_value or machine_code()})
 
     def claim_trial(self, machine_code_value: str = None):
-        if not self.product_id:
-            raise LicenseError("productId required", "PRODUCT_ID_REQUIRED")
-        return self.request("/license/trial/claim", {"productId": self.product_id, "machineCode": machine_code_value or machine_code()})
+        if not self.product_unique_code:
+            raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
+        return self.request("/license/trial/claim", {"productUniqueCode": self.product_unique_code, "machineCode": machine_code_value or machine_code()})
 
     def generate_for_software(self, machine_code_value: str, edition: str = "", expiry_days: int = 0, client_order_id: str = ""):
-        if not self.product_id:
-            raise LicenseError("productId required", "PRODUCT_ID_REQUIRED")
+        if not self.product_unique_code:
+            raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
         return self.request(
             "/license/software/generate",
             {
-                "productId": self.product_id,
+                "productUniqueCode": self.product_unique_code,
                 "machineCode": machine_code_value or machine_code(),
                 "edition": edition,
                 "expiryDays": expiry_days,
@@ -107,12 +107,12 @@ class LicenseClient:
         )
 
     def upgrade_for_software(self, license_code: str, edition: str, machine_code_value: str = None, expiry_days: int = 0, client_order_id: str = ""):
-        if not self.product_id:
-            raise LicenseError("productId required", "PRODUCT_ID_REQUIRED")
+        if not self.product_unique_code:
+            raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
         return self.request(
             "/license/software/upgrade",
             {
-                "productId": self.product_id,
+                "productUniqueCode": self.product_unique_code,
                 "licenseCode": license_code,
                 "machineCode": machine_code_value or machine_code(),
                 "edition": edition,
@@ -131,14 +131,9 @@ class LicenseClient:
         self._verify_cache = {"at": now, "data": data}
         return data
 
-    def purchase_url(self, machine_code_value: str = None, base: str = "https://www.powersoftware.app", product_unique_code: str = None) -> str:
-        """付费功能未授权时的购买页跳转 URL（productId 与 product_unique_code 二选一）。"""
-        if not self.product_id and not product_unique_code:
-            raise LicenseError("productId or productUniqueCode required", "PRODUCT_ID_REQUIRED")
-        params = {}
-        if self.product_id:
-            params["productId"] = self.product_id
-        if product_unique_code:
-            params["productUniqueCode"] = product_unique_code
-        params["machineCode"] = machine_code_value or machine_code()
+    def purchase_url(self, machine_code_value: str = None, base: str = "https://www.powersoftware.app") -> str:
+        """付费功能未授权时的购买页跳转 URL。"""
+        if not self.product_unique_code:
+            raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
+        params = {"productUniqueCode": self.product_unique_code, "machineCode": machine_code_value or machine_code()}
         return f"{base}/product/license/purchase?{urllib.parse.urlencode(params)}"
