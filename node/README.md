@@ -1,17 +1,20 @@
 # PowerSoftware License SDK (Node.js)
 
-零依赖 ESM 包：激活 / 校验 / 解绑 / 软件内发码与升级 / 试用领取，机器码与 HMAC 签名跨语言一致（Node / Python / Java）。
+零依赖 ESM 单文件：激活 / 校验 / 解绑 / 软件内发码与升级 / 试用领取，机器码与 HMAC 签名跨语言一致（Node / Python / Java）。
 
 ## 安装
 
-```bash
-npm install @mizhanchengxi/ps-license-sdk
+直接拷贝源码到你的项目中，无需 npm 安装：
+
+```
+node/src/
+└── index.js    全部功能（machineCode / sign / LicenseClient）
 ```
 
 ## 快速开始
 
 ```js
-import { LicenseClient, machineCode } from '@mizhanchengxi/ps-license-sdk';
+import { LicenseClient, machineCode } from './index.js';
 
 const client = new LicenseClient({
   productUniqueCode: 'PRO-2026-001',

@@ -4,8 +4,13 @@
 
 ## 安装
 
-```bash
-pip install ps-license-sdk
+直接拷贝源码到你的项目中，无需 pip 安装。将以下文件放到项目目录（建议保留 `ps_license_sdk/` 子目录结构）：
+
+```
+python/ps_license_sdk/
+├── __init__.py   导出入口
+├── client.py     核心客户端（activate / verify / claim_trial / generate_for_software / purchase_url 等）
+└── machine.py    机器码生成（三级降级策略）
 ```
 
 ## 快速开始
@@ -25,7 +30,7 @@ lic = client.generate_for_software(mc, edition="PRO", client_order_id="ord-123")
 ## 测试
 
 ```bash
-cd ps-sdk/python && python -m unittest discover tests
+cd python && python -m unittest discover tests
 ```
 
 接口细节见 [授权 SDK 规范 v3](../../ps-help/v3/doc/授权SDK规范_v3.md)。

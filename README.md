@@ -9,35 +9,45 @@ Official SDKs for the PowerSoftware license system, covering **Node.js / Python 
 ## 目录结构 / Repository layout
 
 ```text
-node/     Node.js SDK（ESM，零依赖）
-python/   Python SDK（py3，零依赖）
-java/     Java SDK（Java 11+，零依赖，3 个文件）
+node/     Node.js SDK（ESM，零依赖，单文件）
+python/   Python SDK（py3，零依赖，3 个文件）
+java/     Java SDK（Java 8+，零依赖，3 个文件）
 docs/     SDK 规范（中文 / English）
 ```
 
 ## 安装 / Installation
 
+三语言均为零依赖、**直接拷贝源码**到你的项目中，无需任何包管理器。
+
 ### Node.js
 
-```bash
-npm install @mizhanchengxi/ps-license-sdk
+将以下文件拷贝到项目中：
+
+```
+node/src/
+└── index.js    全部功能（machineCode / sign / LicenseClient）
 ```
 
 ### Python
 
-```bash
-pip install ps-license-sdk
+将以下文件拷贝到项目中（建议放在 `ps_license_sdk/` 目录下）：
+
+```
+python/ps_license_sdk/
+├── __init__.py   导出入口
+├── client.py     核心客户端（activate / verify / claim_trial / generate_for_software / purchase_url 等）
+└── machine.py    机器码生成（三级降级策略）
 ```
 
-### Java（直接拷贝源码）
+### Java
 
-Java SDK 只有 3 个零依赖文件，无需 Maven / Gradle 仓库。将以下文件拷贝到你的项目中（建议放在 `app/powersoftware/sdk/` 包路径下）：
+将以下文件拷贝到项目中（建议放在 `app/powersoftware/sdk/` 包路径下）：
 
 ```
 java/src/main/java/app/powersoftware/sdk/
 ├── LicenseClient.java    核心客户端（activate / verify / claimTrial / generateForSoftware / purchaseUrl 等）
-├── MachineCode.java      机器码生成
-└── Json.java              极简 JSON 工具（内部使用）
+├── MachineCode.java      机器码生成（三级降级策略）
+└── Json.java             极简 JSON 工具（内部使用）
 ```
 
 拷贝后把 `package` 声明改为你的包名即可（默认 `app.powersoftware.sdk`）。
@@ -47,7 +57,7 @@ java/src/main/java/app/powersoftware/sdk/
 ### Node.js
 
 ```js
-import { LicenseClient, machineCode } from '@mizhanchengxi/ps-license-sdk';
+import { LicenseClient, machineCode } from './index.js';
 
 const client = new LicenseClient({ productUniqueCode: 'PRO-2026-001', apiSecret: process.env.LICENSE_API_SECRET });
 const mc = machineCode();
@@ -88,7 +98,7 @@ Map<String, Object> lic = client.generateForSoftware(mc, "PRO", 0, "ord-123");
 
 ## 能力 / Features
 
-- 机器码：同一台机器三语言生成一致（`hostname|os|arch` → SHA-256 → Base64URL）
+- 机器码：同一台机器三语言生成一致（三级降级：硬件序列号 → 系统机器 ID → hostname|os|arch）
 - 签名：`software/generate`、`software/upgrade` 自动 HMAC-SHA256 签名 + 时间戳防重放
 - 接口：`activate` / `verify` / `deactivate` / `claimTrial` / `generateForSoftware` / `upgradeForSoftware`
 - 本地凭证：只存 `licenseCode + activationToken + 最近校验结果`，60s 缓存，不存可解密的完整授权信息
