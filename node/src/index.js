@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import os from 'node:os';
+import path from 'node:path';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 
@@ -12,12 +13,27 @@ function toBase64Url(buf) {
 
 /**
  * 机器码：跨语言一致算法（见 powersoftware-license-sdk/docs/授权SDK规范_v3.md）
- * fingerprint 优先级：硬件序列号 → 系统机器 ID → hostname|os|arch
+ * fingerprint 优先级：
+ * 0. 本地持久化 UUID（首次计算后写入文件，后续直接读取，跨重启稳定）
+ * 1. 硬件序列号（BIOS SN，重装系统不变）
+ * 2. 系统机器 ID（MachineGuid / machine-id / IOPlatformUUID）
+ * 3. 硬件信号组合（MAC + CPU + 内存 + 平台，改名/重装系统不变）
+ * 4. 兜底 hostname | os | arch（仅当以上全部不可用时）
  */
 export function machineCode() {
-  const fingerprint = getFingerprint();
-  const digest = crypto.createHash('sha256').update(fingerprint).digest();
+  const raw = resolveRaw();
+  const digest = crypto.createHash('sha256').update(raw).digest();
   return 'M' + toBase64Url(digest).slice(0, 32);
+}
+
+function resolveRaw() {
+  const persisted = readPersistedUuid();
+  if (persisted) return persisted;
+  const fp = getFingerprint();
+  const uid = crypto.createHash('sha256').update(fp).digest('hex')
+    .replace(/^(.{8})(.{4})(.{4})(.{4})(.{12}).*/, '$1-$2-$3-$4-$5');
+  writePersistedUuid(uid);
+  return uid;
 }
 
 function getFingerprint() {
@@ -40,8 +56,22 @@ function getFingerprint() {
   else if (isLinux) sysId = readLinuxMachineId();
   if (isMeaningful(sysId)) return sysId.toLowerCase();
 
-  // 3. 兜底
+  // 3. 硬件信号组合（MAC + CPU + 内存 + 平台 + 架构）
+  const composite = compositeFingerprint();
+  if (composite) return composite;
+
+  // 4. 兜底
   return [os.hostname(), platform, os.arch()].join('|').toLowerCase();
+}
+
+function compositeFingerprint() {
+  // 仅使用跨语言采集一致的信号（MAC + 平台 + 架构），不含 CPU/内存（各语言取值不同）
+  const parts = [];
+  const macs = getStableMacAddresses();
+  if (macs.length > 0) parts.push('mac:' + macs.sort().join(','));
+  parts.push('plat:' + os.platform());
+  parts.push('arch:' + os.arch());
+  return parts.length > 2 ? parts.join('|').toLowerCase() : '';
 }
 
 /** 过滤厂商占位值（"To be filled by O.E.M." / "None" / "0" 等） */
@@ -51,6 +81,73 @@ function isMeaningful(value) {
   if (!s || s === 'none' || s === '0' || s === 'default') return false;
   if (s.includes('to be filled') || s.includes('o.e.m')) return false;
   if (s.includes('system serial') || s.includes('not available') || s.includes('not specified')) return false;
+  return true;
+}
+
+// ---- 持久化 UUID ----
+
+function persistPath() {
+  const base = process.env.PS_LICENSE_HOME || path.join(os.homedir(), '.powersoftware');
+  return path.join(base, '.machine-id');
+}
+
+function readPersistedUuid() {
+  try {
+    const val = fs.readFileSync(persistPath(), 'utf8').trim();
+    if (val && val.length >= 8) return val;
+  } catch { /* 文件不存在或读取失败 */ }
+  return null;
+}
+
+function writePersistedUuid(uid) {
+  try {
+    const p = persistPath();
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, uid, 'utf8');
+  } catch { /* 写入失败静默忽略 */ }
+}
+
+// ---- MAC 地址采集 ----
+
+function getStableMacAddresses() {
+  // 统一用命令行采集，确保跨语言一致。
+  // Windows: getmac /v（MAC 格式不受系统语言影响）
+  // Mac/Linux: ifconfig（输出通常为英文）
+  const macs = [];
+  const platform = os.platform();
+  let out = null;
+  if (platform === 'win32') {
+    try { out = execSync('getmac /v', { timeout: 5000, encoding: 'utf8' }); } catch {}
+    if (out) {
+      const re = /([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}/g;
+      let m;
+      while ((m = re.exec(out)) !== null) {
+        const mac = m[0].replace(/-/g, ':').toLowerCase();
+        if (isStableMac(mac)) macs.push(mac);
+      }
+    }
+  } else {
+    try { out = execSync('ifconfig', { timeout: 5000, encoding: 'utf8' }); } catch {}
+    if (out) {
+      const re = /ether\s+([0-9a-fA-F:]{17})/g;
+      let m;
+      while ((m = re.exec(out)) !== null) {
+        const mac = m[1].toLowerCase();
+        if (isStableMac(mac)) macs.push(mac);
+      }
+    }
+  }
+  return [...new Set(macs)];
+}
+
+function isStableMac(mac) {
+  const s = mac.replace(/:/g, '').replace(/-/g, '');
+  if (s.length < 12 || s === '0'.repeat(12)) return false;
+  const firstByte = parseInt(s.slice(0, 2), 16);
+  // 回环
+  if (firstByte === 0x02) return false;
+  // 本地管理位：第二低位为 1 表示随机/本地分配
+  if (firstByte & 0x02) return false;
   return true;
 }
 
@@ -132,7 +229,7 @@ function readLinuxMachineId() {
 
 /**
  * HMAC 签名（software/generate、software/upgrade 必须）
- * 签名串：productUniqueCode \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCode \n timestamp
+ * 签名串字段以换行分隔：productUniqueCode, machineCode, edition, expiryDays, clientOrderId, licenseCode, timestamp
  */
 export function sign(apiSecret, params) {
   const payload = [

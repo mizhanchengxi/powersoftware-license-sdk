@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
-import java.util.Base64;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,9 +16,11 @@ import java.util.regex.Pattern;
  * 机器码：跨语言一致算法（见 powersoftware-license-sdk/docs/授权SDK规范_v3.md）
  * <p>
  * fingerprint 优先级：
+ * 0. 本地持久化 UUID（首次计算后写入文件，后续直接读取，跨重启稳定）
  * 1. 硬件序列号（BIOS SN，重装系统不变）
  * 2. 系统机器 ID（MachineGuid / machine-id / IOPlatformUUID，安装时生成）
- * 3. 兜底 hostname | os | arch
+ * 3. 硬件信号组合（MAC + CPU + 内存 + 平台，改名/重装系统不变）
+ * 4. 兜底 hostname | os | arch（仅当以上全部不可用时）
  */
 public final class MachineCode {
 
@@ -26,10 +28,22 @@ public final class MachineCode {
     }
 
     public static String get() {
-        String fingerprint = getFingerprint();
-        byte[] digest = sha256(fingerprint.getBytes(StandardCharsets.UTF_8));
+        String raw = resolveRaw();
+        byte[] digest = sha256(raw.getBytes(StandardCharsets.UTF_8));
         String b64 = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
         return "M" + b64.substring(0, Math.min(32, b64.length()));
+    }
+
+    /** 优先读取持久化 UUID；未命中则计算 fingerprint 并回写。 */
+    private static String resolveRaw() {
+        String persisted = readPersistedUuid();
+        if (persisted != null) return persisted;
+        String fp = getFingerprint();
+        String hex = hexString(sha256(fp.getBytes(StandardCharsets.UTF_8)));
+        String uid = hex.substring(0, 8) + "-" + hex.substring(8, 12) + "-" + hex.substring(12, 16)
+                + "-" + hex.substring(16, 20) + "-" + hex.substring(20, 32);
+        writePersistedUuid(uid);
+        return uid;
     }
 
     private static String getFingerprint() {
@@ -61,8 +75,30 @@ public final class MachineCode {
             return sysId.toLowerCase();
         }
 
-        // 3. 兜底
+        // 3. 硬件信号组合（MAC + CPU + 内存 + 平台 + 架构）
+        String composite = compositeFingerprint();
+        if (!composite.isEmpty()) {
+            return composite;
+        }
+
+        // 4. 兜底
         return String.join("|", hostname(), os, System.getProperty("os.arch", "")).toLowerCase();
+    }
+
+    /** 组合多个硬件信号，单一因素变化不会导致整体指纹变化。
+     *  仅使用跨语言采集一致的信号（MAC + 平台 + 架构），不含 CPU/内存（各语言取值不同）。 */
+    private static String compositeFingerprint() {
+        List<String> parts = new ArrayList<>();
+        List<String> macs = getStableMacAddresses();
+        if (!macs.isEmpty()) {
+            Collections.sort(macs);
+            parts.add("mac:" + String.join(",", macs));
+        }
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String plat = osName.contains("win") ? "win32" : (osName.contains("mac") || osName.contains("darwin")) ? "darwin" : "linux";
+        parts.add("plat:" + plat);
+        parts.add("arch:" + System.getProperty("os.arch", ""));
+        return parts.size() > 2 ? String.join("|", parts).toLowerCase() : "";
     }
 
     /** 过滤 "To be filled by O.E.M." / "None" / "0" 等厂商占位值 */
@@ -223,5 +259,88 @@ public final class MachineCode {
         } catch (Exception e) {
             throw new IllegalStateException("SHA-256 unavailable", e);
         }
+    }
+
+    private static String hexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 2);
+        for (byte b : bytes) sb.append(String.format("%02x", b & 0xff));
+        return sb.toString();
+    }
+
+    // ---- 持久化 UUID ----
+
+    private static String persistPath() {
+        String base = System.getenv("PS_LICENSE_HOME");
+        if (base == null || base.isEmpty()) {
+            base = System.getProperty("user.home") + java.io.File.separator + ".powersoftware";
+        }
+        return base + java.io.File.separator + ".machine-id";
+    }
+
+    private static String readPersistedUuid() {
+        try {
+            String val = new String(Files.readAllBytes(Paths.get(persistPath())), StandardCharsets.UTF_8).trim();
+            if (val.length() >= 8) return val;
+        } catch (Exception e) { /* 文件不存在或读取失败 */ }
+        return null;
+    }
+
+    private static void writePersistedUuid(String uid) {
+        try {
+            java.nio.file.Path p = Paths.get(persistPath());
+            Files.createDirectories(p.getParent());
+            Files.write(p, uid.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) { /* 写入失败静默忽略 */ }
+    }
+
+    // ---- MAC 地址采集 ----
+
+    /** 采集非随机、非回环的 MAC 地址列表。
+     *  统一用命令行采集，确保跨语言一致。
+     *  Windows: getmac /v（MAC 格式不受系统语言影响）
+     *  Mac/Linux: ifconfig（输出通常为英文） */
+    private static List<String> getStableMacAddresses() {
+        List<String> macs = new ArrayList<>();
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String out = null;
+        if (osName.contains("win")) {
+            out = exec(new String[]{"getmac", "/v"}, 5);
+            if (out != null) {
+                Matcher m = Pattern.compile("([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}").matcher(out);
+                while (m.find()) {
+                    String mac = m.group().replace("-", ":").toLowerCase();
+                    if (isStableMac(mac)) macs.add(mac);
+                }
+            }
+        } else {
+            out = exec(new String[]{"ifconfig"}, 5);
+            if (out != null) {
+                Matcher m = Pattern.compile("ether\\s+([0-9a-fA-F:]{17})").matcher(out);
+                while (m.find()) {
+                    String mac = m.group(1).toLowerCase();
+                    if (isStableMac(mac)) macs.add(mac);
+                }
+            }
+        }
+        // 去重
+        return new ArrayList<>(new LinkedHashSet<>(macs));
+    }
+
+    /** 过滤回环、全零、随机/本地位设置的 MAC。 */
+    private static boolean isStableMac(String mac) {
+        String s = mac.replace(":", "").replace("-", "").toLowerCase();
+        if (s.length() < 12 || s.equals(repeat('0', 12))) return false;
+        int firstByte = Integer.parseInt(s.substring(0, 2), 16);
+        // 回环
+        if (firstByte == 0x02) return false;
+        // 本地管理位：第二低位为 1 表示随机/本地分配
+        if ((firstByte & 0x02) != 0) return false;
+        return true;
+    }
+
+    private static String repeat(char c, int count) {
+        char[] arr = new char[count];
+        Arrays.fill(arr, c);
+        return new String(arr);
     }
 }

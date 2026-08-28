@@ -9,8 +9,19 @@ All three SDKs must produce the same `machineCode` on the same machine.
 Fingerprint sources are selected by **priority** — stop at the first valid value:
 
 ```text
-fingerprint = hardware serial → system machine ID → hostname | os | arch (fallback)
+raw = persisted UUID → hardware serial → system machine ID → composite hardware signals → hostname | os | arch (last resort)
 ```
+
+### Priority 0: Persisted UUID (computed once, then read from local file)
+
+On first run, the SDK computes the fingerprint (priority 1–4), generates a UUID, and writes it to a local file. Subsequent calls read the file directly, skipping all hardware collection.
+
+| Field | Description |
+| --- | --- |
+| File path | `$PS_LICENSE_HOME/.machine-id`, fallback `~/.powersoftware/.machine-id` |
+| Generation | SHA-256(fingerprint) first 32 hex chars, formatted as UUID-style |
+| Write policy | Write only if file does not exist; skip if already present |
+| Stability | Machine code stays the same as long as user home / disk persists (survives rename, OS reinstall) |
 
 ### Priority 1: Hardware serial (BIOS SN, survives OS reinstall)
 
@@ -28,9 +39,24 @@ fingerprint = hardware serial → system machine ID → hostname | os | arch (fa
 | macOS | IOPlatformUUID | `ioreg -d2 -c IOPlatformPlatformDevice` | Standard user |
 | Linux | machine-id | Read `/etc/machine-id` (fallback `/var/lib/dbus/machine-id`) | All users |
 
-### Priority 3: Fallback (hostname | os | arch)
+### Priority 3: Composite hardware signals (MAC + platform + arch)
 
-Used when both hardware serial and system machine ID fail.
+Used when both hardware serial and system machine ID fail. Combines multiple hardware signals so that a change in any single factor (e.g. hostname rename) does not alter the overall fingerprint.
+
+| Signal | Node | Python | Java |
+| --- | --- | --- | --- |
+| MAC addresses (non-random, non-loopback) | `getmac /v` (Win) / `ifconfig` (Mac/Linux) | Same | Same |
+| Platform | `os.platform()` | `sys.platform` | Mapped to `win32/darwin/linux` |
+| Architecture | `os.arch()` | `platform.machine()` | `System.getProperty("os.arch")` |
+
+MAC collection uses command-line tools uniformly (Windows: `getmac /v`, Mac/Linux: `ifconfig`) to ensure cross-language consistency.
+MAC filtering: exclude all-zero, loopback (`0x02`), and locally-administered (`bit1 & 0x02`) MAC addresses.
+
+> Note: CPU/memory signals are intentionally excluded because native APIs return different values across languages.
+
+### Priority 4: Last resort (hostname | os | arch)
+
+Used only when all above signals are unavailable (minimal containers, stripped systems).
 
 | Field | Node | Python | Java |
 | --- | --- | --- | --- |
@@ -55,7 +81,13 @@ machineCode = 'M' + base64url( sha256( fingerprint ) ).slice(0, 32)
 Payload joined by `\n` in fixed order (empty string for missing `edition`/`licenseCode`, `0` for `expiryDays`):
 
 ```text
-productUniqueCode \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCode \n timestamp
+productUniqueCode 
+ machineCode 
+ edition 
+ expiryDays 
+ clientOrderId 
+ licenseCode 
+ timestamp
 ```
 
 `signature = base64url( HMAC-SHA256( licenseApiSecret, payload ) )`; `timestamp` in milliseconds, platform rejects drift > 5 minutes.

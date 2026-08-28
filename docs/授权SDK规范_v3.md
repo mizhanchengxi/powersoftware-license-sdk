@@ -10,8 +10,19 @@
 指纹来源按**优先级**选取，取到有效值即停止：
 
 ```text
-fingerprint = 硬件序列号 → 系统机器 ID → hostname | os | arch（兜底）
+raw = 持久化 UUID → 硬件序列号 → 系统机器 ID → 硬件信号组合 → hostname | os | arch（兜底）
 ```
+
+### 优先级 0：本地持久化 UUID（首次计算后写入文件，后续直接读取）
+
+首次运行时，按优先级 1–4 计算 fingerprint，生成 UUID 并写入本地文件；后续调用直接读取该文件，跳过所有硬件采集。
+
+| 字段 | 说明 |
+| --- | --- |
+| 文件路径 | `$PS_LICENSE_HOME/.machine-id`，未设环境变量时回退 `~/.powersoftware/.machine-id` |
+| 生成方式 | SHA-256(fingerprint) 前 32 位 hex，格式化为 UUID 样式 |
+| 写入策略 | 仅文件不存在时写入，已有则跳过 |
+| 稳定性 | 只要用户目录/磁盘不变，机器码不变（跨重启、跨改名、跨重装） |
 
 ### 优先级 1：硬件序列号（BIOS SN，重装系统不变）
 
@@ -29,9 +40,24 @@ fingerprint = 硬件序列号 → 系统机器 ID → hostname | os | arch（兜
 | macOS | IOPlatformUUID | `ioreg -d2 -c IOPlatformPlatformDevice` | 普通用户 |
 | Linux | machine-id | 读 `/etc/machine-id`（降级 `/var/lib/dbus/machine-id`） | 所有用户 |
 
-### 优先级 3：兜底（hostname | os | arch）
+### 优先级 3：硬件信号组合（MAC + 平台 + 架构）
 
-当硬件序列号和系统机器 ID 均获取失败时使用。
+当硬件序列号和系统机器 ID 均获取失败时，组合多个硬件信号生成指纹。单一因素变化（如改名）不会导致整体指纹变化。
+
+| 信号 | Node | Python | Java |
+| --- | --- | --- | --- |
+| MAC 地址（非随机、非回环） | `getmac /v`（Win）/ `ifconfig`（Mac/Linux） | 同左 | 同左 |
+| 平台 | `os.platform()` | `sys.platform` | 映射为 `win32/darwin/linux` |
+| 架构 | `os.arch()` | `platform.machine()` | `System.getProperty("os.arch")` |
+
+MAC 采集统一用命令行工具（Windows: `getmac /v`，Mac/Linux: `ifconfig`），确保跨语言结果一致。
+MAC 过滤规则：去除全零、回环 (`0x02`)、本地位设置 (`bit1 & 0x02`) 的 MAC 地址。
+
+> 注：不含 CPU/内存信号，因各语言原生 API 取值不同，无法保证跨语言一致。
+
+### 优先级 4：兜底（hostname | os | arch）
+
+当以上全部不可用时使用（极端精简系统、容器等）。
 
 | 字段 | Node | Python | Java |
 | --- | --- | --- | --- |
@@ -53,10 +79,16 @@ machineCode = 'M' + base64url( sha256( fingerprint ) ).slice(0, 32)
 
 ## 2. 签名规则（software/generate、software/upgrade 必须）
 
-签名串按固定顺序、换行分隔（缺省填空值：`edition` 空串、`expiryDays` 0、`licenseCode` 空串）：
+签名串按固定顺序、以 `\n` 换行分隔（缺省填空值：`edition` 空串、`expiryDays` 0、`licenseCode` 空串）：
 
 ```text
-productUniqueCode \n machineCode \n edition \n expiryDays \n clientOrderId \n licenseCode \n timestamp
+productUniqueCode
+machineCode
+edition
+expiryDays
+clientOrderId
+licenseCode
+timestamp
 ```
 
 `signature = base64url( HMAC-SHA256( licenseApiSecret, 签名串 ) )`；`timestamp` 为毫秒，平台校验与服务器时间差 ≤ 5 分钟（防重放）。
