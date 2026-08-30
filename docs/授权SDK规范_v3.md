@@ -108,6 +108,17 @@ timestamp
 
 `generateForSoftware` / `upgradeForSoftware` 自动补 `timestamp` + `signature`；`claimTrial` 需产品为先用后付。
 
+### 3.1 升级策略标识（licenseUpgradeMode）
+
+`activate` / `verify` / `claimTrial` 的成功响应额外返回产品级升级策略：
+
+| 取值 | 含义 |
+| --- | --- |
+| `SAME_CODE` | 原码不变：升级/续费后授权码不变 |
+| `NEW_CODE` | 原码换绑：升级/续费吊销旧码、签发新码 |
+
+客户端据此决定是否展示「绑定授权码」输入框：`SAME_CODE` 下码不变，无需引导用户重新输入；`NEW_CODE` 下升级/续费会签发新码，须以 `software/upgrade` 返回的新 `licenseCode` 覆盖本地存储。产品未配置时返回 `SAME_CODE`；`verify` 结果缓存 60 秒，策略变更最长 60 秒生效。
+
 ## 4. 本地凭证与校验缓存
 
 - 本地**只存**：`licenseCode`、`activationToken`、最近一次 verify 结果（`{ valid, edition, expiryTime }` + 时间戳）。

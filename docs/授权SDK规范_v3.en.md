@@ -107,6 +107,17 @@ Base: `https://www.powersoftware.app/frontApi` (overridable).
 
 `generateForSoftware` / `upgradeForSoftware` add `timestamp` + `signature` automatically.
 
+### 3.1 Upgrade policy flag (licenseUpgradeMode)
+
+`activate` / `verify` / `claimTrial` success responses also return the product-level upgrade policy:
+
+| Value | Meaning |
+| --- | --- |
+| `SAME_CODE` | The license code stays the same after upgrade/renewal |
+| `NEW_CODE` | Upgrade/renewal revokes the old code and issues a new one |
+
+Clients use it to decide whether to show a "bind license code" input: with `SAME_CODE` the code never changes, so do not prompt users to re-enter it; with `NEW_CODE` a new code is issued on upgrade/renewal — the `licenseCode` returned by `software/upgrade` must overwrite local storage. Defaults to `SAME_CODE` when the product has no setting; `verify` results are cached for 60s, so policy changes take effect within 60s.
+
 ## 4. Local credential & verification cache
 
 - Store only: `licenseCode`, `activationToken`, latest verify result (`{ valid, edition, expiryTime }`) with a timestamp.
