@@ -120,7 +120,7 @@ Clients use it to decide whether to show a "bind license code" input: with `SAME
 
 ## 4. Local credential & verification cache
 
-- Store only: `licenseCode`, `activationToken`, latest verify result (`{ valid, edition, expiryTime }`) with a timestamp.
+- Store only: `licenseCode`, `activationToken`, latest verify result (`{ valid, edition, expiryTime, trialExpiryTime }`) with a timestamp. `trialExpiryTime` is a snapshot of the original trial expiry (non-`null` after trial-to-purchase conversion); clients may use it to implement their own grace period for higher-tier features (see the integration guide, section 3.6).
 - Do **not** store decryptable full license info locally (reverse engineering cannot be prevented anyway).
 - Verification cache TTL 60s: check cache before each paid-feature click; on expiry or failure call the server.
 
@@ -139,4 +139,4 @@ https://www.powersoftware.cn/product/license/purchase?productUniqueCode={product
 
 ## 6. Error codes
 
-`codeNotFound`, `revoked`, `expired`, `machineLimit`, `tooManyAttempts`, `signatureInvalid`, `apiSecretMissing`, `productNotEnabled`, `trialNotEnabled`, `machineCodeInvalid`, `orderAlreadyUsed`, `editionRequired`, `productNotFound`, `trialFirstRequired`, `alreadyOwned`; network/timeout errors are `NETWORK_ERROR`.
+`codeNotFound`, `revoked`, `expired`, `machineLimit`, `tooManyAttempts`, `signatureInvalid`, `apiSecretMissing`, `productNotEnabled`, `trialNotEnabled`, `trialAlreadyPurchased`, `machineCodeInvalid`, `orderAlreadyUsed`, `editionRequired`, `productNotFound`, `trialFirstRequired`, `alreadyOwned`; network/timeout errors are `NETWORK_ERROR`. `trialAlreadyPurchased`: when claiming a trial, the machine already holds a non-trial license for the product (already purchased); the platform will not issue another trial license.

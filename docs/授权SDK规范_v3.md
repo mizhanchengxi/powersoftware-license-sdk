@@ -121,7 +121,7 @@ timestamp
 
 ## 4. 本地凭证与校验缓存
 
-- 本地**只存**：`licenseCode`、`activationToken`、最近一次 verify 结果（`{ valid, edition, expiryTime }` + 时间戳）。
+- 本地**只存**：`licenseCode`、`activationToken`、最近一次 verify 结果（`{ valid, edition, expiryTime, trialExpiryTime }` + 时间戳）。`trialExpiryTime` 为原试用授权到期时间快照（试用转购买后非 `null`），客户端可据此自行实现高档功能宽限期（详见接入指南 3.6 节）。
 - **不存**可解密的完整授权信息（防逆向无意义，只作缓存）。
 - 校验缓存 TTL 60s：点击付费功能时先查缓存，未过期直接用；过期或失败再调服务端 `verify`。
 - 服务端吊销/退款/升级会主动失效缓存（平台侧已实现），SDK 无需感知。
@@ -142,7 +142,7 @@ https://www.powersoftware.app/product/license/purchase?productUniqueCode={produc
 
 ### 5.错误码（SDK 抛错统一携带 errorCode）
 
-`codeNotFound`、`revoked`、`expired`、`machineLimit`、`tooManyAttempts`、`signatureInvalid`、`apiSecretMissing`、`productNotEnabled`、`trialNotEnabled`、`machineCodeInvalid`、`orderAlreadyUsed`、`editionRequired`、`productNotFound`、`trialFirstRequired`、`alreadyOwned` 等；网络/超时错误统一为 `NETWORK_ERROR`。
+`codeNotFound`、`revoked`、`expired`、`machineLimit`、`tooManyAttempts`、`signatureInvalid`、`apiSecretMissing`、`productNotEnabled`、`trialNotEnabled`、`trialAlreadyPurchased`、`machineCodeInvalid`、`orderAlreadyUsed`、`editionRequired`、`productNotFound`、`trialFirstRequired`、`alreadyOwned` 等；网络/超时错误统一为 `NETWORK_ERROR`。`trialAlreadyPurchased`：领取试用时该机器在产品下已存在非试用授权（已购买），平台不再发放试用授权码。
 
 ## 6. 包结构
 
