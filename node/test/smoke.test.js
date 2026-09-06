@@ -19,3 +19,22 @@ test('purchaseUrl carries params', () => {
   assert.match(url, /machineCode=MABC/);
   assert.doesNotMatch(url, /productId=/);
 });
+
+test('checkUpdate posts updateCheck and parses content', async () => {
+  let captured;
+  const fetchImpl = async (url, init) => {
+    captured = { url, body: JSON.parse(init.body) };
+    return new Response(JSON.stringify({ success: true, content: { hasUpdate: true, latestVersion: '1.3.0' } }), { status: 200 });
+  };
+  const c = new LicenseClient({ productUniqueCode: 'PRO-2026-001', fetchImpl });
+  const result = await c.checkUpdate('1.2.0');
+  assert.match(captured.url, /\/product\/updateCheck$/);
+  assert.equal(captured.body.productUniqueCode, 'PRO-2026-001');
+  assert.equal(captured.body.currentVersion, '1.2.0');
+  assert.deepEqual(result, { hasUpdate: true, latestVersion: '1.3.0' });
+});
+
+test('checkUpdate requires productUniqueCode', () => {
+  const c = new LicenseClient({});
+  assert.throws(() => c.checkUpdate('1.2.0'), /productUniqueCode required/);
+});

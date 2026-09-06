@@ -105,10 +105,30 @@ timestamp
 | 软件内发码 | `POST /license/software/generate` | HMAC 签名 | `generateForSoftware({...})` |
 | 软件内升级/续费 | `POST /license/software/upgrade` | HMAC 签名 | `upgradeForSoftware({...})` |
 | 领取试用 | `POST /license/trial/claim` | 无 | `claimTrial(machineCode)` |
+| 检查版本更新 | `POST /product/updateCheck` | 无 | `checkUpdate(currentVersion)` |
 
 `generateForSoftware` / `upgradeForSoftware` 自动补 `timestamp` + `signature`；`claimTrial` 需产品为先用后付。
 
-### 3.1 升级策略标识（licenseUpgradeMode）
+### 3.1 检查版本更新（checkUpdate）
+
+请求：
+
+```json
+{ "productUniqueCode": "PRO-2026-001", "currentVersion": "1.2.0" }
+```
+
+响应（`content` 字段）：
+
+```json
+{ "hasUpdate": true, "latestVersion": "1.3.0" }
+```
+
+- 匿名可访问，仅返回**已上架**产品的版本信息；产品不存在 / 未上架 / 未填版本统一返回 `{ "hasUpdate": false, "latestVersion": null }`（不报错）。
+- 版本号按数字段逐段比较（`1.10.0` > `1.2.0`）；`currentVersion` 格式宽松，非数字段（如 `1.2.0-beta`）按数字段参与比较。
+- 服务端长缓存（多级，Cache API + KV）：产品审核通过 / 上下架 / 编辑版本后缓存自动失效，生效延迟约 1 分钟。
+- 客户端建议：启动时异步调用、成功后间隔 ≥ 6 小时再查；`hasUpdate=true` 时引导用户到产品详情页下载；网络失败静默降级，不阻塞主流程。
+
+### 3.2 升级策略标识（licenseUpgradeMode）
 
 `activate` / `verify` / `claimTrial` 的成功响应额外返回产品级升级策略：
 

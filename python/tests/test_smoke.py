@@ -1,6 +1,6 @@
 import unittest
 
-from ps_license_sdk import LicenseClient, machine_code, sign
+from ps_license_sdk import LicenseClient, LicenseError, machine_code, sign
 
 
 class SmokeTest(unittest.TestCase):
@@ -16,6 +16,25 @@ class SmokeTest(unittest.TestCase):
         url = LicenseClient(product_unique_code="PRO-2026-001").purchase_url("MABC")
         self.assertIn("productUniqueCode=PRO-2026-001", url)
         self.assertIn("machineCode=MABC", url)
+
+    def test_check_update_posts_and_parses(self):
+        captured = {}
+
+        class FakeClient(LicenseClient):
+            def request(self, path, body=None, signed=False, timeout=15.0):
+                captured["path"] = path
+                captured["body"] = body
+                return {"hasUpdate": True, "latestVersion": "1.3.0"}
+
+        result = FakeClient(product_unique_code="PRO-2026-001").check_update("1.2.0")
+        self.assertEqual(captured["path"], "/product/updateCheck")
+        self.assertEqual(captured["body"]["productUniqueCode"], "PRO-2026-001")
+        self.assertEqual(captured["body"]["currentVersion"], "1.2.0")
+        self.assertEqual(result, {"hasUpdate": True, "latestVersion": "1.3.0"})
+
+    def test_check_update_requires_product_code(self):
+        with self.assertRaises(LicenseError):
+            LicenseClient().check_update("1.2.0")
 
 
 if __name__ == "__main__":

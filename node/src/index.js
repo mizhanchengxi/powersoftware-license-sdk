@@ -300,6 +300,15 @@ export class LicenseClient {
     return this.request('/license/trial/claim', { productUniqueCode: this.productUniqueCode, machineCode: machineCodeValue });
   }
 
+  /**
+   * 检查版本更新：返回 { hasUpdate, latestVersion }。
+   * hasUpdate=true 时自行引导用户到产品详情页下载新版本；网络失败由调用方静默降级。
+   */
+  checkUpdate(currentVersion) {
+    if (!this.productUniqueCode) throw new Error('productUniqueCode required');
+    return this.request('/product/updateCheck', { productUniqueCode: this.productUniqueCode, currentVersion });
+  }
+
   /** 软件内支付后发码（HMAC 签名，幂等：clientOrderId） */
   generateForSoftware(params) {
     const body = {

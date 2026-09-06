@@ -91,6 +91,13 @@ class LicenseClient:
             raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
         return self.request("/license/trial/claim", {"productUniqueCode": self.product_unique_code, "machineCode": machine_code_value or machine_code()})
 
+    def check_update(self, current_version: str):
+        """检查版本更新：返回 { hasUpdate, latestVersion }。
+        hasUpdate=true 时自行引导用户到产品详情页下载新版本；网络失败由调用方静默降级。"""
+        if not self.product_unique_code:
+            raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
+        return self.request("/product/updateCheck", {"productUniqueCode": self.product_unique_code, "currentVersion": current_version})
+
     def generate_for_software(self, machine_code_value: str, edition: str = "", expiry_days: int = 0, client_order_id: str = ""):
         if not self.product_unique_code:
             raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")

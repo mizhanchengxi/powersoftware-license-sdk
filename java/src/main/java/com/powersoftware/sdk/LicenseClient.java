@@ -147,6 +147,15 @@ public class LicenseClient {
         return request("/license/trial/claim", mapOf("productUniqueCode", productUniqueCode, "machineCode", machineCodeValue), false);
     }
 
+    /**
+     * 检查版本更新：返回 { hasUpdate, latestVersion }。
+     * hasUpdate=true 时自行引导用户到产品详情页下载新版本；网络失败由调用方静默降级。
+     */
+    public Map<String, Object> checkUpdate(String currentVersion) throws Exception {
+        requireProductCode();
+        return request("/product/updateCheck", mapOf("productUniqueCode", productUniqueCode, "currentVersion", currentVersion), false);
+    }
+
     public Map<String, Object> generateForSoftware(String machineCodeValue, String edition, int expiryDays, String clientOrderId) throws Exception {
         requireProductCode();
         Map<String, Object> body = new LinkedHashMap<>();
