@@ -144,8 +144,8 @@ Editions can be configured with one of three billing periods; the purchase page 
 | billingPeriod | Meaning | `expiryTime` |
 |---|---|---|
 | `PERMANENT` (default) | Lifetime buyout | `null` (never expires) |
-| `MONTHLY` | Monthly subscription (fixed 30 days) | Fixed expiry date (ISO 8601) |
-| `YEARLY` | Yearly subscription (fixed 365 days) | Fixed expiry date (ISO 8601) |
+| `MONTHLY` | Monthly authorization — one-time purchase for a fixed 30 days (no auto-renewal) | Fixed expiry date (ISO 8601) |
+| `YEARLY` | Yearly authorization — one-time purchase for a fixed 365 days (no auto-renewal) | Fixed expiry date (ISO 8601) |
 
 - `expiryTime` in `verify` / `activate`: for periodic editions it is a fixed expiry date; once passed, verify returns the `expired` error code — handle it with your existing expiry prompt, no need to know the period type.
 - **Renewal extension**: renewing before expiry (purchase page or in-app renewal) automatically extends from the **original expiry date** (`base = max(now, old expiry)`), so no remaining time is lost; renewing after expiry starts from the current time. Edition upgrades follow the same rule; upgrading to a lifetime edition clears `expiryTime`.
