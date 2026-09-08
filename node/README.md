@@ -8,7 +8,20 @@
 
 ```
 node/src/
-└── index.js    全部功能（machineCode / sign / LicenseClient）
+├── index.js         全部功能（machineCode / sign / LicenseClient）
+└── webextension.js  浏览器插件（MV3）适配层：EXT- 前缀 Install ID + storage.local/sync 持久化
+```
+
+### 浏览器插件（WebExtension）
+
+插件沙箱拿不到硬件指纹，机器码降级为插件 Install ID（`EXT-` 前缀随机 UUID），服务端按前缀识别为插件类型（`machineType=PLUGIN`）。manifest 需声明 `"storage"` 权限：
+
+```js
+import { LicenseClient, machineCode } from './webextension.js';  // 拷贝单文件即可，不依赖 node 模块
+
+const client = new LicenseClient({ productUniqueCode: 'PRO-2026-001' });
+const mc = await machineCode();  // 注意：异步；storage.sync 跟随浏览器账号，跨设备同 ID
+await client.activate(licenseCode, mc);
 ```
 
 ## 快速开始

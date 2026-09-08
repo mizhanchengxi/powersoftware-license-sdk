@@ -160,6 +160,20 @@ https://www.powersoftware.app/product/license/purchase?productUniqueCode={produc
 
 （多语言站点在路径前加语言前缀，如 `/en-US/product/license/purchase`；`productUniqueCode` 由构造器传入。）
 
+### 5.1 计费周期与续费顺延（billingPeriod）
+
+平台版本可配置三种计费周期，购买页价格按周期展示（`/月`、`/年`，永久无后缀）：
+
+| billingPeriod | 含义 | `expiryTime` |
+|---|---|---|
+| `PERMANENT`（默认） | 永久买断 | `null`（永久有效） |
+| `MONTHLY` | 按月订阅（固定 30 天） | 固定到期日（ISO 8601） |
+| `YEARLY` | 按年订阅（固定 365 天） | 固定到期日（ISO 8601） |
+
+- `verify` / `activate` 的 `expiryTime`：周期版为固定到期日，到期后 verify 返回 `expired` 错误码，客户端按既有过期逻辑弹购买提示即可，无需感知周期类型；
+- **续费顺延**：未到期续购（平台购买页或软件内续购）时，新有效期自动在**原到期时间**基础上顺延（`base = max(now, 旧到期)`），不损失剩余时长；过期后续购从当前时间起算；跨版本升级同理，升级到永久版会清空 `expiryTime` 回归永久语义；
+- 客户端如需展示「按月/按年」标识，以购买页版本配置为准；SDK 接口暂不返回 `billingPeriod` 字段。
+
 ### 5.错误码（SDK 抛错统一携带 errorCode）
 
 `codeNotFound`、`revoked`、`expired`、`machineLimit`、`tooManyAttempts`、`signatureInvalid`、`apiSecretMissing`、`productNotEnabled`、`trialNotEnabled`、`trialAlreadyPurchased`、`machineCodeInvalid`、`orderAlreadyUsed`、`editionRequired`、`productNotFound`、`trialFirstRequired`、`alreadyOwned` 等；网络/超时错误统一为 `NETWORK_ERROR`。`trialAlreadyPurchased`：领取试用时该机器在产品下已存在非试用授权（已购买），平台不再发放试用授权码。

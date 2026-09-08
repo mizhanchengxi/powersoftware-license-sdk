@@ -137,6 +137,20 @@ https://www.powersoftware.cn/product/license/purchase?productUniqueCode={product
 
 (Multi-language sites prepend the locale prefix, e.g. `/en-US/product/license/purchase`; for the China site pass `base=https://www.powersoftware.cn`. All three SDKs implement `purchaseUrl(machineCode, { base })` consistently — `productUniqueCode` is passed to the constructor.)
 
+### 5.1 Billing period & renewal extension (billingPeriod)
+
+Editions can be configured with one of three billing periods; the purchase page shows prices with the period suffix (`/mo`, `/yr`; none for lifetime):
+
+| billingPeriod | Meaning | `expiryTime` |
+|---|---|---|
+| `PERMANENT` (default) | Lifetime buyout | `null` (never expires) |
+| `MONTHLY` | Monthly subscription (fixed 30 days) | Fixed expiry date (ISO 8601) |
+| `YEARLY` | Yearly subscription (fixed 365 days) | Fixed expiry date (ISO 8601) |
+
+- `expiryTime` in `verify` / `activate`: for periodic editions it is a fixed expiry date; once passed, verify returns the `expired` error code — handle it with your existing expiry prompt, no need to know the period type.
+- **Renewal extension**: renewing before expiry (purchase page or in-app renewal) automatically extends from the **original expiry date** (`base = max(now, old expiry)`), so no remaining time is lost; renewing after expiry starts from the current time. Edition upgrades follow the same rule; upgrading to a lifetime edition clears `expiryTime`.
+- If the client needs to display a "monthly/yearly" badge, use the edition configuration from the purchase page; the SDK APIs do not return a `billingPeriod` field yet.
+
 ## 6. Error codes
 
 `codeNotFound`, `revoked`, `expired`, `machineLimit`, `tooManyAttempts`, `signatureInvalid`, `apiSecretMissing`, `productNotEnabled`, `trialNotEnabled`, `trialAlreadyPurchased`, `machineCodeInvalid`, `orderAlreadyUsed`, `editionRequired`, `productNotFound`, `trialFirstRequired`, `alreadyOwned`; network/timeout errors are `NETWORK_ERROR`. `trialAlreadyPurchased`: when claiming a trial, the machine already holds a non-trial license for the product (already purchased); the platform will not issue another trial license.
