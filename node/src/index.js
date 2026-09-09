@@ -321,7 +321,7 @@ export class LicenseClient {
     return this.request('/license/software/generate', body, { signed: true });
   }
 
-  /** 软件内升级/续费（HMAC 签名，幂等：clientOrderId） */
+  /** 软件内升级/续费（HMAC 签名，幂等：clientOrderId）；billingPeriod：目标计费周期（同版本多周期产品指定升级到哪条，缺省取该版本配置首行） */
   upgradeForSoftware(params) {
     const body = {
       productUniqueCode: params.productUniqueCode ?? this.productUniqueCode,
@@ -329,6 +329,7 @@ export class LicenseClient {
       machineCode: params.machineCode,
       edition: params.edition,
       expiryDays: params.expiryDays ?? 0,
+      billingPeriod: params.billingPeriod,
       clientOrderId: params.clientOrderId,
     };
     return this.request('/license/software/upgrade', body, { signed: true });

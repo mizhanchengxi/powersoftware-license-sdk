@@ -167,7 +167,13 @@ public class LicenseClient {
         return request("/license/software/generate", body, true);
     }
 
+    /** 软件内升级/续费（兼容旧签名，不带计费周期） */
     public Map<String, Object> upgradeForSoftware(String licenseCode, String machineCodeValue, String edition, int expiryDays, String clientOrderId) throws Exception {
+        return upgradeForSoftware(licenseCode, machineCodeValue, edition, expiryDays, clientOrderId, null);
+    }
+
+    /** 软件内升级/续费；billingPeriod：目标计费周期（同版本多周期产品指定升级到哪条，缺省取该版本配置首行） */
+    public Map<String, Object> upgradeForSoftware(String licenseCode, String machineCodeValue, String edition, int expiryDays, String clientOrderId, String billingPeriod) throws Exception {
         requireProductCode();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("productUniqueCode", productUniqueCode);
@@ -175,6 +181,7 @@ public class LicenseClient {
         body.put("machineCode", machineCodeValue);
         body.put("edition", edition);
         body.put("expiryDays", expiryDays);
+        if (billingPeriod != null) body.put("billingPeriod", billingPeriod);
         body.put("clientOrderId", clientOrderId == null ? "" : clientOrderId);
         return request("/license/software/upgrade", body, true);
     }

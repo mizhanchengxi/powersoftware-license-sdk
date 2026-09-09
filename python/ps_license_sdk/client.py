@@ -113,7 +113,8 @@ class LicenseClient:
             signed=True,
         )
 
-    def upgrade_for_software(self, license_code: str, edition: str, machine_code_value: str = None, expiry_days: int = 0, client_order_id: str = ""):
+    def upgrade_for_software(self, license_code: str, edition: str, machine_code_value: str = None, expiry_days: int = 0, client_order_id: str = "", billing_period: str = None):
+        """软件内升级/续费。billing_period：目标计费周期（同版本多周期产品指定升级到哪条，缺省取该版本配置首行）。"""
         if not self.product_unique_code:
             raise LicenseError("productUniqueCode required", "PRODUCT_ID_REQUIRED")
         return self.request(
@@ -124,6 +125,7 @@ class LicenseClient:
                 "machineCode": machine_code_value or machine_code(),
                 "edition": edition,
                 "expiryDays": expiry_days,
+                "billingPeriod": billing_period,
                 "clientOrderId": client_order_id,
             },
             signed=True,

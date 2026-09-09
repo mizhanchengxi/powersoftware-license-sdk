@@ -107,6 +107,15 @@ Base: `https://www.powersoftware.app/frontApi` (overridable).
 
 `generateForSoftware` / `upgradeForSoftware` add `timestamp` + `signature` automatically.
 
+### 3.0 Software upgrade params (upgradeForSoftware)
+
+| Param | Required | Description |
+| --- | --- | --- |
+| `productUniqueCode` / `licenseCode` / `machineCode` / `clientOrderId` | ✅ | Product code / license code to upgrade / machine code / idempotent order ID |
+| `edition` | ✅ | Target edition |
+| `billingPeriod` | ❌ | Target billing period (`PERMANENT`/`MONTHLY`/`YEARLY`): when an edition has multiple billing periods, specifies which one to upgrade to; defaults to the edition's first configured row (unknown values also fall back to the first row). Periodic licenses extend expiry by `base = max(now, old expiry)`; perpetual licenses keep the legacy `expiryDays` behavior. Not included in the signature |
+| `expiryDays` | ❌ | Custom validity days for perpetual licenses (ignored for periodic ones) |
+
 ### 3.1 Upgrade policy flag (licenseUpgradeMode)
 
 `activate` / `verify` / `claimTrial` success responses also return the product-level upgrade policy:

@@ -109,6 +109,15 @@ timestamp
 
 `generateForSoftware` / `upgradeForSoftware` 自动补 `timestamp` + `signature`；`claimTrial` 需产品为先用后付。
 
+### 3.0 软件内升级/续费参数（upgradeForSoftware）
+
+| 参数 | 必填 | 说明 |
+| --- | --- | --- |
+| `productUniqueCode` / `licenseCode` / `machineCode` / `clientOrderId` | ✅ | 产品编码 / 待升级授权码 / 机器码 / 幂等订单号 |
+| `edition` | ✅ | 目标版本 |
+| `billingPeriod` | ❌ | 目标计费周期（`PERMANENT`/`MONTHLY`/`YEARLY`）：同一版本可配多条计费周期时指定升级到哪条；缺省取该版本配置首行（指定了不存在的周期也回退首行）。周期版按 `base = max(now, 旧到期)` 顺延有效期，永久版保留旧 `expiryDays` 兼容行为。不参与签名 |
+| `expiryDays` | ❌ | 永久版自定义有效天数（周期版忽略该参数） |
+
 ### 3.1 检查版本更新（checkUpdate）
 
 请求：
