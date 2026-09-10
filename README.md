@@ -110,6 +110,7 @@ Machine code is identical across the three languages on the same machine; signed
 
 - 规范（中文）：[docs/授权SDK规范_v3.md](docs/授权SDK规范_v3.md)
 - Spec (English): [docs/授权SDK规范_v3.en.md](docs/授权SDK规范_v3.en.md)
+- 接口文档：[docs/授权接口文档_v3.md](docs/授权接口文档_v3.md)（与后端实现同步的请求/响应字段与错误码）
 - 帮助中心 LICENSE_API_DOC（平台端接口说明）：https://www.powersoftware.app/doc/detail/LICENSE_API_DOC
 
 ## License
