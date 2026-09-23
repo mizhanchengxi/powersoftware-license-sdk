@@ -127,6 +127,17 @@ Base: `https://www.powersoftware.app/frontApi` (overridable).
 
 Clients use it to decide whether to show a "bind license code" input: with `SAME_CODE` the code never changes, so do not prompt users to re-enter it; with `NEW_CODE` a new code is issued on upgrade/renewal — the `licenseCode` returned by `software/upgrade` must overwrite local storage. Defaults to `SAME_CODE` when the product has no setting; `verify` results are cached for 60s, so policy changes take effect within 60s.
 
+### 3.2 Trial-count period (trialCountPeriod / trialPeriodKey)
+
+Alongside `trialCount` (the edition's trial quota; `null` when disabled), `activate` / `verify` / `claimTrial` success responses carry two fields:
+
+| Field | Meaning |
+| --- | --- |
+| `trialCountPeriod` | `TOTAL` — one cumulative quota, over once used up (default, matches legacy behavior) / `MONTHLY` — refreshed every calendar month |
+| `trialPeriodKey` | Server's current calendar-month key (e.g. `"2026-09"`, UTC) when `MONTHLY`; `null` for `TOTAL` / disabled |
+
+The platform still records no usage: in `MONTHLY` mode persist the local counter as `{ periodKey, used }` — whenever the stored `periodKey` differs from the latest response's `trialPeriodKey`, reset `used` to 0 and store the new key. Month boundaries must be taken from the server-issued `trialPeriodKey`, **never from the local clock** (a rewound clock must not buy extra tries). Each month's quota is independent and never rolls over.
+
 ## 4. Local credential & verification cache
 
 - Store only: `licenseCode`, `activationToken`, latest verify result (`{ valid, edition, expiryTime, trialExpiryTime }`) with a timestamp. `trialExpiryTime` is a snapshot of the original trial expiry (non-`null` after trial-to-purchase conversion); clients may use it to implement their own grace period for higher-tier features (see the integration guide, section 3.6).
