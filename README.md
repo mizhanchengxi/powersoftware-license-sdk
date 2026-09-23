@@ -4,15 +4,21 @@ PowerSoftware（幂栈网）授权码开放能力的官方 SDK，覆盖 **Node.j
 
 Official SDKs for the PowerSoftware license system, covering **Node.js / Python / Java** with a consistent machine-code algorithm, HMAC signing, endpoint wrappers, and a local verification cache.
 
+<p align="center">
+  <b>🌐 语言 / Language</b> &nbsp;·&nbsp; <a href="./README.md">中文</a> &nbsp;|&nbsp; <a href="./README.en.md">English</a>
+  <br/>
+  <sub>下方接入文档均为中英双份，点击对应语言切换 / Every doc below is bilingual — click a language to switch. <a href="#docs--文档">Docs ↓</a></sub>
+</p>
+
 ---
 
 ## 目录结构 / Repository layout
 
 ```text
-node/     Node.js SDK（ESM，零依赖，单文件）
-python/   Python SDK（py3，零依赖，3 个文件）
-java/     Java SDK（Java 8+，零依赖，3 个文件）
-docs/     SDK 规范（中文 / English）
+node/     Node.js SDK (ESM, zero-dep, single file)
+python/   Python SDK (py3, zero-dep, 3 files)
+java/     Java SDK (Java 8+, zero-dep, 3 files)
+docs/     Specs & integration guides (中文 + English, one .md / .en.md pair per topic)
 ```
 
 ## 安装 / Installation
@@ -104,14 +110,27 @@ Map<String, Object> lic = client.generateForSoftware(mc, "PRO", 0, "ord-123");
 - 本地凭证：只存 `licenseCode + activationToken + 最近校验结果`，60s 缓存，不存可解密的完整授权信息
 - 购买页跳转：`/product/license/purchase?productUniqueCode=&machineCode=`
 
-Machine code is identical across the three languages on the same machine; signed requests include a timestamp to prevent replay; only the credential and a 60s verification cache are stored locally.
+English:
 
-## 文档 / Docs
+- **Machine code** — identical across the three languages on the same machine (3-level fallback: hardware serial → system machine ID → `hostname|os|arch`).
+- **Signing** — `software/generate` and `software/upgrade` are auto-signed with HMAC-SHA256 + timestamp to prevent replay.
+- **Endpoints** — `activate` / `verify` / `deactivate` / `claimTrial` / `generateForSoftware` / `upgradeForSoftware`.
+- **Local credential** — only `licenseCode + activationToken + last verify result` are persisted, with a 60s verify cache; no decryptable full license payload is stored.
+- **Purchase page redirect** — `/product/license/purchase?productUniqueCode=&machineCode=`.
 
-- 规范（中文）：[docs/授权SDK规范_v3.md](docs/授权SDK规范_v3.md)
-- Spec (English): [docs/授权SDK规范_v3.en.md](docs/授权SDK规范_v3.en.md)
-- 接口文档：[docs/授权接口文档_v3.md](docs/授权接口文档_v3.md)（与后端实现同步的请求/响应字段与错误码）
-- 帮助中心 LICENSE_API_DOC（平台端接口说明）：https://www.powersoftware.app/doc/detail/LICENSE_API_DOC
+## Docs / 文档
+
+> 每篇文档均提供中文与 English 两个版本，点击对应语言切换。  
+> Every document is available in both Chinese and English — click a language to switch.
+
+| Document / 文档 | 🇨🇳 中文 | 🇬🇧 English |
+|---|---|---|
+| License SDK spec / 授权 SDK 规范 | [授权SDK规范_v3.md](docs/授权SDK规范_v3.md) | [授权SDK规范_v3.en.md](docs/授权SDK规范_v3.en.md) |
+| Client software guide / 客户端软件授权接入指南 | [客户端软件授权接入指南_v3.md](docs/客户端软件授权接入指南_v3.md) | [客户端软件授权接入指南_v3.en.md](docs/客户端软件授权接入指南_v3.en.md) |
+| Browser extension guide / 浏览器插件授权接入指南 | [浏览器插件授权接入指南_v3.md](docs/浏览器插件授权接入指南_v3.md) | [浏览器插件授权接入指南_v3.en.md](docs/浏览器插件授权接入指南_v3.en.md) |
+| Open-API reference / 授权开放接口文档 | [授权接口文档_v3.md](docs/授权接口文档_v3.md) | [授权接口文档_v3.en.md](docs/授权接口文档_v3.en.md) |
+
+Platform-side help center / 帮助中心（平台端接口说明）LICENSE_API_DOC：https://www.powersoftware.app/doc/detail/LICENSE_API_DOC
 
 ## License
 
